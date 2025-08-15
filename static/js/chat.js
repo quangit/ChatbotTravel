@@ -267,9 +267,9 @@ class ChatInterface {
             
             const data = await response.json();
             
-            if (data.status === 'success' && data.audio_data) {
+            if (data.success && data.audio) {
                 // Convert base64 to audio blob
-                const audioData = atob(data.audio_data);
+                const audioData = atob(data.audio);
                 const audioArray = new Uint8Array(audioData.length);
                 for (let i = 0; i < audioData.length; i++) {
                     audioArray[i] = audioData.charCodeAt(i);
@@ -291,7 +291,8 @@ class ChatInterface {
                 });
                 
             } else {
-                this.showError('Không thể tạo âm thanh cho tin nhắn này.');
+                const errorMsg = data.error || 'Không thể tạo âm thanh cho tin nhắn này.';
+                this.showError(errorMsg);
             }
             
         } catch (error) {

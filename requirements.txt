@@ -11,3 +11,9 @@ python-docx
 requests
 Pillow
 werkzeug
+torch
+torchvision
+torchaudio
+transformers
+soundfile
+numpy

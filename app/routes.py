@@ -95,6 +95,8 @@ def text_to_speech():
         data = request.get_json()
         text = data.get('text', '')
         
+        print(f"[TTS] Received text: {text}")  # Debug log
+        
         if not text:
             return jsonify({'error': 'No text provided'}), 400
         
@@ -104,20 +106,25 @@ def text_to_speech():
         if audio_data:
             # Convert to base64 for JSON response
             audio_base64 = base64.b64encode(audio_data).decode('utf-8')
+            print(f"[TTS] Generated {len(audio_data)} bytes audio")
             return jsonify({
-                'audio_data': audio_base64,
-                'status': 'success'
+                'success': True,
+                'audio': audio_base64
             })
         else:
+            print("[TTS] Failed to generate audio")
             return jsonify({
-                'error': 'Failed to generate audio',
-                'status': 'error'
+                'success': False,
+                'error': 'Failed to generate audio'
             }), 500
             
     except Exception as e:
+        print(f"[TTS] Error: {str(e)}")
+        import traceback
+        traceback.print_exc()
         return jsonify({
-            'error': f'TTS Error: {str(e)}',
-            'status': 'error'
+            'success': False,
+            'error': f'TTS Error: {str(e)}'
         }), 500
 
 @main.route('/api/upload', methods=['POST'])
