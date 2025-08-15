@@ -54,14 +54,21 @@ def chat():
     """Handle chat requests"""
     try:
         data = request.get_json()
+        print(f"[DEBUG] Received data: {data}")  # Debug log
         
         if not data:
+            print("[DEBUG] No data provided")
             return jsonify({'error': 'No data provided'}), 400
         
         message = data.get('message', '')
         image_data = data.get('image_data')
+        image_type = data.get('image_type')
+        
+        print(f"[DEBUG] Message: {message[:50] if message else 'None'}...")
+        print(f"[DEBUG] Has image: {bool(image_data)}")
         
         if not message and not image_data:
+            print("[DEBUG] No message or image provided")
             return jsonify({'error': 'Message or image is required'}), 400
         
         # Process query with AI agent
@@ -73,6 +80,9 @@ def chat():
         })
         
     except Exception as e:
+        print(f"[ERROR] Chat error: {str(e)}")
+        import traceback
+        traceback.print_exc()
         return jsonify({
             'error': f'Xin lỗi, đã có lỗi xảy ra: {str(e)}',
             'status': 'error'

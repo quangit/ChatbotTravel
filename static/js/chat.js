@@ -100,8 +100,11 @@ class ChatInterface {
         
         if (!message && !hasImage) return;
         
+        // Store image data before clearing
+        const imageDataToSend = hasImage ? this.currentImageData : null;
+        
         // Add user message to chat
-        this.addMessage(message || '[Hình ảnh]', 'user', hasImage ? this.currentImageData : null);
+        this.addMessage(message || '[Hình ảnh]', 'user', imageDataToSend);
         
         // Clear input
         this.messageInput.value = '';
@@ -113,8 +116,8 @@ class ChatInterface {
             
             const requestData = {
                 message: message,
-                image_data: hasImage && this.currentImageData ? this.currentImageData.data : null,
-                image_type: hasImage && this.currentImageData ? this.currentImageData.type : null
+                image_data: imageDataToSend ? imageDataToSend.data : null,
+                image_type: imageDataToSend ? imageDataToSend.type : null
             };
             
             const response = await fetch('/api/chat', {

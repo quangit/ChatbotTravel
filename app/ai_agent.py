@@ -64,10 +64,15 @@ class TravelAIAgent:
         if state.get("image_data"):
             # Process image
             try:
+                print(f"[DEBUG] Processing image data, length: {len(state['image_data']) if state['image_data'] else 0}")
                 image_analysis = self._analyze_image(state["image_data"])
                 state["query"] = image_analysis
                 state["query_type"] = "image"
+                print(f"[DEBUG] Image analysis result: {image_analysis[:100]}...")
             except Exception as e:
+                print(f"[ERROR] Image analysis failed: {str(e)}")
+                import traceback
+                traceback.print_exc()
                 state["query"] = "Không thể phân tích hình ảnh này"
                 state["query_type"] = "text"
         else:
@@ -79,6 +84,12 @@ class TravelAIAgent:
     def _analyze_image(self, image_data: str) -> str:
         """Analyze image using Vision API"""
         try:
+            print("[DEBUG] Starting image analysis...")
+            
+            # Validate image data
+            if not image_data or len(image_data.strip()) == 0:
+                return "Dữ liệu hình ảnh không hợp lệ"
+            
             # Prepare messages for vision model
             messages = [
                 SystemMessage(content="""
@@ -93,10 +104,16 @@ class TravelAIAgent:
                 ])
             ]
             
+            print("[DEBUG] Calling vision LLM...")
             response = self.vision_llm.invoke(messages)
-            return response.content
+            result = response.content
+            print(f"[DEBUG] Vision LLM response: {result[:100]}...")
+            return result
             
         except Exception as e:
+            print(f"[ERROR] Image analysis error: {str(e)}")
+            import traceback
+            traceback.print_exc()
             return f"Không thể phân tích hình ảnh: {str(e)}"
     
     def _retrieve_docs(self, state: AgentState) -> AgentState:
