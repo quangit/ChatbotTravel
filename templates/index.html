@@ -1,0 +1,64 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="chat-container">
+    <div class="chat-header">
+        <h1><i class="fas fa-robot"></i> Trợ lý Du lịch AI</h1>
+        <p>Hỏi tôi về địa điểm du lịch, món ăn ngon ở Việt Nam!</p>
+        <div class="header-actions">
+            <a href="/admin" class="admin-link"><i class="fas fa-cog"></i> Quản trị</a>
+        </div>
+    </div>
+    
+    <div class="chat-messages" id="chatMessages">
+        <div class="message bot-message">
+            <div class="message-avatar">
+                <i class="fas fa-robot"></i>
+            </div>
+            <div class="message-content">
+                <p>Xin chào! Tôi là trợ lý du lịch AI. Bạn có thể hỏi tôi về:</p>
+                <ul>
+                    <li>Địa điểm du lịch nổi tiếng</li>
+                    <li>Món ăn đặc sản các vùng miền</li>
+                    <li>Gửi ảnh để tôi nhận dạng món ăn hoặc địa điểm</li>
+                </ul>
+                <p>Hãy bắt đầu cuộc trò chuyện nhé!</p>
+            </div>
+        </div>
+    </div>
+    
+    <div class="chat-input-container">
+        <div class="input-group">
+            <input type="file" id="imageInput" accept="image/*" style="display: none;">
+            <button type="button" id="imageButton" class="input-button" title="Gửi hình ảnh">
+                <i class="fas fa-image"></i>
+            </button>
+            
+            <input type="text" id="messageInput" placeholder="Hỏi tôi về du lịch Việt Nam..." 
+                   class="message-input" maxlength="500">
+            
+            <button type="button" id="sendButton" class="send-button">
+                <i class="fas fa-paper-plane"></i>
+            </button>
+        </div>
+        
+        <div class="image-preview" id="imagePreview" style="display: none;">
+            <img id="previewImage" src="" alt="Preview">
+            <button type="button" id="removeImage" class="remove-image">
+                <i class="fas fa-times"></i>
+            </button>
+        </div>
+    </div>
+</div>
+
+<div class="loading-overlay" id="loadingOverlay" style="display: none;">
+    <div class="loading-spinner">
+        <i class="fas fa-spinner fa-spin"></i>
+        <p>Đang xử lý...</p>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script src="{{ url_for('static', filename='js/chat.js') }}"></script>
+{% endblock %}

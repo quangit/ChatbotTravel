@@ -1,0 +1,94 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="admin-container">
+    <div class="admin-header">
+        <h1><i class="fas fa-database"></i> Quản lý Tri thức</h1>
+        <p>Tải lên tài liệu để cập nhật cơ sở tri thức cho chatbot</p>
+        <div class="header-actions">
+            <a href="{{ url_for('main.index') }}" class="back-link">
+                <i class="fas fa-comments"></i> Chat
+            </a>
+            <a href="{{ url_for('main.admin_logout') }}" class="logout-link">
+                <i class="fas fa-sign-out-alt"></i> Đăng xuất
+            </a>
+        </div>
+    </div>
+    
+    <div class="upload-section">
+        <div class="upload-card">
+            <div class="upload-header">
+                <h3><i class="fas fa-cloud-upload-alt"></i> Tải lên Tài liệu</h3>
+                <p>Hỗ trợ các định dạng: .txt, .pdf, .docx</p>
+            </div>
+            
+            <form id="uploadForm" enctype="multipart/form-data">
+                <div class="file-input-group">
+                    <input type="file" id="fileInput" name="file" accept=".txt,.pdf,.docx" required>
+                    <label for="fileInput" class="file-input-label">
+                        <i class="fas fa-file-upload"></i>
+                        <span>Chọn tệp tin</span>
+                    </label>
+                </div>
+                
+                <div class="file-info" id="fileInfo" style="display: none;">
+                    <p><strong>Tệp đã chọn:</strong> <span id="fileName"></span></p>
+                    <p><strong>Kích thước:</strong> <span id="fileSize"></span></p>
+                </div>
+                
+                <button type="submit" id="uploadButton" class="upload-button" disabled>
+                    <i class="fas fa-upload"></i> Tải lên và Xử lý
+                </button>
+            </form>
+        </div>
+        
+        <div class="upload-status" id="uploadStatus" style="display: none;">
+            <div class="status-content">
+                <i class="fas fa-info-circle"></i>
+                <span id="statusMessage"></span>
+            </div>
+        </div>
+        
+        <div class="upload-progress" id="uploadProgress" style="display: none;">
+            <div class="progress-bar">
+                <div class="progress-fill"></div>
+            </div>
+            <p>Đang xử lý tài liệu...</p>
+        </div>
+    </div>
+    
+    <div class="instructions">
+        <h3><i class="fas fa-info-circle"></i> Hướng dẫn sử dụng</h3>
+        <div class="instruction-cards">
+            <div class="instruction-card">
+                <h4><i class="fas fa-file-alt"></i> Tệp văn bản (.txt)</h4>
+                <p>Tải lên thông tin du lịch, mô tả địa điểm, món ăn dưới dạng văn bản thuần túy.</p>
+            </div>
+            
+            <div class="instruction-card">
+                <h4><i class="fas fa-file-pdf"></i> Tệp PDF (.pdf)</h4>
+                <p>Tải lên brochure du lịch, tài liệu hướng dẫn có định dạng PDF.</p>
+            </div>
+            
+            <div class="instruction-card">
+                <h4><i class="fas fa-file-word"></i> Tệp Word (.docx)</h4>
+                <p>Tải lên tài liệu được soạn thảo bằng Microsoft Word.</p>
+            </div>
+        </div>
+        
+        <div class="tips">
+            <h4><i class="fas fa-lightbulb"></i> Mẹo để tối ưu hóa:</h4>
+            <ul>
+                <li>Sử dụng ngôn ngữ tiếng Việt rõ ràng, dễ hiểu</li>
+                <li>Bao gồm tên địa điểm, địa chỉ cụ thể</li>
+                <li>Mô tả chi tiết về món ăn, nhà hàng, địa điểm</li>
+                <li>Giới hạn kích thước tệp dưới 16MB</li>
+            </ul>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script src="{{ url_for('static', filename='js/admin.js') }}"></script>
+{% endblock %}
