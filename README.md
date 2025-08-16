@@ -1,4 +1,5 @@
 # Trợ lý Du lịch AI (Travel AI Assistant)
+<img width="1098" height="706" alt="image" src="https://github.com/user-attachments/assets/d132e4f1-655f-4225-a16c-6ad643944b6b" />
 
 Một ứng dụng web chatbot thông minh giúp người dùng tìm hiểu về các địa điểm du lịch và món ăn ngon tại Việt Nam. Ứng dụng sử dụng công nghệ AI tiên tiến với khả năng hiểu cả văn bản và hình ảnh.
 
@@ -45,6 +46,9 @@ Một ứng dụng web chatbot thông minh giúp người dùng tìm hiểu về
 │    └─────────────────┘      └─────────────────┘   └──────────────────┘
 └─────────────────────────────────────────────────────────────┘
 ```
+## LangGraph flowchart
+<img width="3840" height="3226" alt="Untitled diagram _ Mermaid Chart-2025-08-16-055905" src="https://github.com/user-attachments/assets/dc955c50-98f2-44ff-b2ca-78607d0cd62c" />
+
 
 ## 🛠️ Công nghệ sử dụng
 
