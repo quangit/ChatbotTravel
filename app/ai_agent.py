@@ -161,9 +161,10 @@ class TravelAIAgent:
             
             response = self.llm.invoke(messages)
             state["response"] = response.content
+            print(state["response"])
             
             # Add Google Maps links
-            state["response"] = self._add_google_maps_links(state["response"])
+            # state["response"] = self._add_google_maps_links(state["response"])
             
         except Exception as e:
             state["response"] = f"Xin lỗi, tôi đang gặp sự cố kết nối. Vui lòng thử lại sau. Lỗi: {str(e)}"
@@ -171,22 +172,21 @@ class TravelAIAgent:
         return state
     
     def _add_google_maps_links(self, text: str) -> str:
-        """Add Google Maps links to locations mentioned in the response"""
-        # Simple regex to find potential addresses or restaurant names
-        # This is a basic implementation, can be improved
-        patterns = [
-            r'([A-ZÀÁẢÃẠĂẮẰẲẴẶÂẤẦẨẪẬÈÉẺẼẸÊẾỀỂỄỆÌÍỈĨỊÒÓỎÕỌÔỐỒỔỖỘƠỚỜỞỠỢÙÚỦŨỤƯỨỪỬỮỰỲÝỶỸỴĐ][a-zàáảãạăắằẳẵặâấầẩẫậèéẻẽẹêếềểễệìíỉĩịòóỏõọôốồổỗộơớờởỡợùúủũụưứừửữựỳýỷỹỵđ\s]+(?:quán|nhà hàng|chùa|đền|hồ|phố|đường)[a-zàáảãạăắằẳẵặâấầẩẫậèéẻẽẹêếềểễệìíỉĩịòóỏõọôốồổỗộơớờởỡợùúủũụưứừửữựỳýỷỹỵđ\s]*)',
-        ]
+        """Replace existing Google Maps links format with proper location names"""
+        # Pattern to match existing [Xem bản đồ](https://maps.google.com/maps?q=...) format
+        pattern = r'\[Xem bản đồ\]\(https://maps\.google\.com/maps\?q=([^)]+)\)'
         
-        for pattern in patterns:
-            matches = re.finditer(pattern, text, re.IGNORECASE)
-            for match in matches:
-                location = match.group(1).strip()
-                maps_url = f"https://maps.google.com/maps?q={location.replace(' ', '+')}"
-                replacement = f"{location} [Xem bản đồ]({maps_url})"
-                text = text.replace(location, replacement, 1)
+        def replace_maps_link(match):
+            # Extract the location query from the URL
+            location_query = match.group(1)
+            # Decode URL encoding and replace + with spaces
+            location_name = location_query.replace('+', ' ').replace('%20', ' ')
+            # Return the formatted link
+            return f"[Xem bản đồ](https://maps.google.com/maps?q={location_query})"
         
-        return text
+        # Replace all matches
+        result = re.sub(pattern, replace_maps_link, text)
+        return result
     
     def process_query(self, query: str, image_data: str = None) -> str:
         """Process user query and return response"""
