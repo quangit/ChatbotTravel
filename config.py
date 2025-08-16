@@ -30,6 +30,10 @@ class Config:
     # ChromaDB
     CHROMADB_PATH = os.environ.get('CHROMADB_PATH') or './data/chroma_db'
     
+    # OpenWeather API
+    OPENWEATHER_API_KEY = os.environ.get('OPENWEATHER_API_KEY')
+    OPENWEATHER_BASE_URL = 'http://api.openweathermap.org/data/2.5'
+    
     # Upload settings
     UPLOAD_FOLDER = 'uploads'
     MAX_CONTENT_LENGTH = 16 * 1024 * 1024  # 16MB max file size

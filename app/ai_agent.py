@@ -4,6 +4,7 @@ from langgraph.graph import StateGraph, END
 from typing import TypedDict, List
 import base64
 import requests
+import json
 from config import Config
 from app.models import ChromaDBManager
 import re
@@ -14,6 +15,8 @@ class AgentState(TypedDict):
     query_type: str  # "text" or "image"
     image_data: str
     retrieved_docs: List[str]
+    location_info: str  # Extracted location for weather
+    weather_info: str   # Weather information
     response: str
 
 class TravelAIAgent:
@@ -48,11 +51,15 @@ class TravelAIAgent:
         workflow.add_node("analyze_input", self._analyze_input)
         workflow.add_node("retrieve_docs", self._retrieve_docs)
         workflow.add_node("generate_response", self._generate_response)
+        workflow.add_node("get_weather", self._get_weather_info)
+        workflow.add_node("final_response", self._generate_final_response)
         
         # Add edges
         workflow.add_edge("analyze_input", "retrieve_docs")
         workflow.add_edge("retrieve_docs", "generate_response")
-        workflow.add_edge("generate_response", END)
+        workflow.add_edge("generate_response", "get_weather")
+        workflow.add_edge("get_weather", "final_response")
+        workflow.add_edge("final_response", END)
         
         # Set entry point
         workflow.set_entry_point("analyze_input")
@@ -132,8 +139,102 @@ class TravelAIAgent:
         
         return state
     
+    def _extract_location(self, response_text: str) -> str:
+        """Extract location name from LLM response"""
+        try:
+            # Use LLM to extract location from the generated response
+            messages = [
+                SystemMessage(content="""
+                Hãy trích xuất tên thành phố hoặc địa điểm du lịch chính từ văn bản phản hồi sau.
+                Chỉ trả về TÊN MỘT địa điểm/thành phố bằng tiếng Anh (ví dụ: Ho Chi Minh City, Hanoi, Da Nang, Hoi An, Sapa, Phu Quoc).
+                Nếu có nhiều địa điểm, chọn địa điểm chính được đề cập nhiều nhất.
+                Nếu không tìm thấy địa điểm cụ thể, trả về "".
+                Chỉ trả về tên địa điểm, không giải thích thêm.
+                
+                Ví dụ:
+                - Input: "Hà Nội là thủ đô..." → Output: "Hanoi"  
+                - Input: "Du lịch Đà Nẵng rất thú vị..." → Output: "Da Nang"
+                - Input: "Món phở ngon..." → Output: ""
+                """),
+                HumanMessage(content=f"Phản hồi cần phân tích: {response_text}")
+            ]
+            
+            response = self.llm.invoke(messages)
+            location = response.content.strip()
+            
+            # Clean up the response - remove quotes and extra text
+            location = location.replace('"', '').replace("'", '').strip()
+            if location.lower() in ['không có', 'không tìm thấy', 'none', 'n/a', '', 'không rõ']:
+                return ""
+                
+            print(f"[DEBUG] Extracted location from response: {location}")
+            return location
+            
+        except Exception as e:
+            print(f"[ERROR] Location extraction failed: {str(e)}")
+            return ""
+    
+    def _get_weather_info(self, state: AgentState) -> AgentState:
+        """Get weather information for the location mentioned in the response"""
+        try:
+            # Extract location from the generated response
+            location = self._extract_location(state["response"])
+            state["location_info"] = location
+            
+            if not location or not Config.OPENWEATHER_API_KEY:
+                state["weather_info"] = ""
+                print(f"[DEBUG] Skipping weather - Location: '{location}', API Key available: {bool(Config.OPENWEATHER_API_KEY)}")
+                return state
+            
+            # Get weather data from OpenWeather API
+            weather_url = f"{Config.OPENWEATHER_BASE_URL}/weather"
+            params = {
+                'q': location,
+                'appid': Config.OPENWEATHER_API_KEY,
+                'units': 'metric',  # Celsius
+                'lang': 'vi'  # Vietnamese
+            }
+            
+            response = requests.get(weather_url, params=params, timeout=5)
+            
+            if response.status_code == 200:
+                weather_data = response.json()
+                
+                # Extract relevant weather information
+                weather_info = {
+                    'location': weather_data['name'],
+                    'country': weather_data['sys']['country'],
+                    'temperature': round(weather_data['main']['temp']),
+                    'feels_like': round(weather_data['main']['feels_like']),
+                    'humidity': weather_data['main']['humidity'],
+                    'description': weather_data['weather'][0]['description'],
+                    'wind_speed': weather_data.get('wind', {}).get('speed', 0)
+                }
+                
+                # Format weather information in Vietnamese
+                weather_text = f"""
+🌤️ **Thông tin thời tiết tại {weather_info['location']}, {weather_info['country']}:**
+- Nhiệt độ: {weather_info['temperature']}°C (cảm giác như {weather_info['feels_like']}°C)
+- Thời tiết: {weather_info['description']}
+- Độ ẩm: {weather_info['humidity']}%
+- Tốc độ gió: {weather_info['wind_speed']} m/s
+"""
+                
+                state["weather_info"] = weather_text
+                print(f"[DEBUG] Weather info retrieved for {location}")
+                
+            else:
+                print(f"[DEBUG] Weather API error: {response.status_code} for location: {location}")
+                state["weather_info"] = ""
+                
+        except Exception as e:
+            print(f"[ERROR] Weather info retrieval failed: {str(e)}")
+            state["weather_info"] = ""
+        
+        return state
+    
     def _generate_response(self, state: AgentState) -> AgentState:
-        """Generate response using LLM"""
+        """Generate initial response using LLM without weather info"""
         try:
             # Prepare context from retrieved documents
             context = "\n".join(state["retrieved_docs"]) if state["retrieved_docs"] else "Không có thông tin liên quan trong cơ sở dữ liệu."
@@ -161,15 +262,60 @@ class TravelAIAgent:
             
             response = self.llm.invoke(messages)
             state["response"] = response.content
-            print(state["response"])
-            
-            # Add Google Maps links
-            # state["response"] = self._add_google_maps_links(state["response"])
+            print(f"[DEBUG] Initial response generated: {state['response'][:100]}...")
             
         except Exception as e:
             state["response"] = f"Xin lỗi, tôi đang gặp sự cố kết nối. Vui lòng thử lại sau. Lỗi: {str(e)}"
         
         return state
+    
+    def _generate_final_response(self, state: AgentState) -> AgentState:
+        """Generate final response by combining initial response with weather info"""
+        try:
+            final_response = state["response"]
+            
+            # Add weather information if available
+            if state.get("weather_info"):
+                final_response += f"\n\n{state['weather_info']}"
+                
+                # Add weather-based advice
+                weather_advice = self._get_weather_advice(state["weather_info"], state["location_info"])
+                if weather_advice:
+                    final_response += f"\n💡 **Lời khuyên dựa trên thời tiết:** {weather_advice}"
+            
+            state["response"] = final_response
+            print(f"[DEBUG] Final response with weather info generated")
+            
+        except Exception as e:
+            print(f"[ERROR] Final response generation failed: {str(e)}")
+            # Keep the original response if final generation fails
+        
+        return state
+    
+    def _get_weather_advice(self, weather_info: str, location: str) -> str:
+        """Generate weather-based travel advice"""
+        try:
+            if not weather_info:
+                return ""
+            
+            messages = [
+                SystemMessage(content="""
+                Dựa vào thông tin thời tiết được cung cấp, hãy đưa ra lời khuyên ngắn gọn cho du khách về:
+                - Trang phục nên mặc
+                - Hoạt động phù hợp
+                - Lưu ý đặc biệt
+                
+                Trả lời bằng tiếng Việt, ngắn gọn (2-3 câu), thực tế và hữu ích.
+                """),
+                HumanMessage(content=f"Thông tin thời tiết: {weather_info}")
+            ]
+            
+            response = self.llm.invoke(messages)
+            return response.content.strip()
+            
+        except Exception as e:
+            print(f"[ERROR] Weather advice generation failed: {str(e)}")
+            return ""
     
     def _add_google_maps_links(self, text: str) -> str:
         """Replace existing Google Maps links format with proper location names"""
@@ -196,6 +342,8 @@ class TravelAIAgent:
             "query_type": "text",
             "image_data": image_data,
             "retrieved_docs": [],
+            "location_info": "",
+            "weather_info": "",
             "response": ""
         }
         
