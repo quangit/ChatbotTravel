@@ -1,5 +1,5 @@
 from langchain_openai import AzureChatOpenAI
-from langchain.schema import HumanMessage, SystemMessage
+from langchain.schema import HumanMessage, SystemMessage, AIMessage
 from langgraph.graph import StateGraph, END
 from typing import TypedDict, List
 import base64
@@ -180,7 +180,7 @@ class TravelAIAgent:
                     if msg["role"] == "user":
                         state["messages"].append(HumanMessage(content=msg["content"]))
                     else:
-                        state["messages"].append(SystemMessage(content=msg["content"]))
+                        state["messages"].append(AIMessage(content=msg["content"]))
             
             # Thêm câu hỏi hiện tại
             state["messages"].append(HumanMessage(content=state["query"]))
