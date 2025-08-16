@@ -69,12 +69,16 @@ class TravelAIAgent:
     
     def _analyze_input(self, state: AgentState) -> AgentState:
         """Analyze user input to determine query type"""
+        print(f"[DEBUG] Analyzing input...{state}")
         if state.get("image_data"):
             # Process image
             try:
                 print(f"[DEBUG] Processing image data, length: {len(state['image_data']) if state['image_data'] else 0}")
                 image_analysis = self._analyze_image(state["image_data"])
-                state["query"] = image_analysis
+                if state["query"]:
+                    state["query"] += " " + image_analysis
+                else:
+                    state["query"] = image_analysis
                 state["query_type"] = "image"
                 print(f"[DEBUG] Image analysis result: {image_analysis[:100]}...")
             except Exception as e:
