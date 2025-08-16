@@ -57,19 +57,40 @@ class ChatInterface {
         }
         
         try {
-            const base64Data = await this.convertFileToBase64(file);
+            // Show loading state
+            this.showProcessingMessage('Đang xử lý hình ảnh...');
+            
+            // Resize image with max dimension 512px
+            const resizedImageData = await this.resizeImage(file, 512);
+            
             this.currentImageData = {
-                data: base64Data,
+                data: resizedImageData.base64,
                 name: file.name,
-                type: file.type
+                type: file.type,
+                originalSize: {
+                    width: resizedImageData.originalWidth,
+                    height: resizedImageData.originalHeight
+                },
+                resizedSize: {
+                    width: resizedImageData.width,
+                    height: resizedImageData.height
+                }
             };
             
-            // Show preview
-            this.previewImage.src = `data:${file.type};base64,${base64Data}`;
+            // Show preview with resized image
+            this.previewImage.src = `data:${file.type};base64,${resizedImageData.base64}`;
             this.imagePreview.style.display = 'flex';
             
             this.updateSendButton();
+            
+            // Hide processing message
+            this.hideProcessingMessage();
+            
+            // Show resize info
+            console.log(`Image resized from ${resizedImageData.originalWidth}x${resizedImageData.originalHeight} to ${resizedImageData.width}x${resizedImageData.height}`);
+            
         } catch (error) {
+            this.hideProcessingMessage();
             this.showError('Có lỗi khi xử lý hình ảnh.');
             console.error('Image processing error:', error);
         }
@@ -84,6 +105,58 @@ class ChatInterface {
             };
             reader.onerror = reject;
             reader.readAsDataURL(file);
+        });
+    }
+    
+    resizeImage(file, maxDimension = 512) {
+        return new Promise((resolve, reject) => {
+            const canvas = document.createElement('canvas');
+            const ctx = canvas.getContext('2d');
+            const img = new Image();
+            
+            img.onload = () => {
+                // Calculate new dimensions
+                let { width, height } = img;
+                
+                if (width > height) {
+                    if (width > maxDimension) {
+                        height = (height * maxDimension) / width;
+                        width = maxDimension;
+                    }
+                } else {
+                    if (height > maxDimension) {
+                        width = (width * maxDimension) / height;
+                        height = maxDimension;
+                    }
+                }
+                
+                // Set canvas dimensions
+                canvas.width = width;
+                canvas.height = height;
+                
+                // Draw and resize image
+                ctx.drawImage(img, 0, 0, width, height);
+                
+                // Convert to base64
+                canvas.toBlob((blob) => {
+                    const reader = new FileReader();
+                    reader.onload = () => {
+                        const base64 = reader.result.split(',')[1];
+                        resolve({
+                            base64: base64,
+                            width: width,
+                            height: height,
+                            originalWidth: img.width,
+                            originalHeight: img.height
+                        });
+                    };
+                    reader.onerror = reject;
+                    reader.readAsDataURL(blob);
+                }, file.type, 0.9); // 90% quality
+            };
+            
+            img.onerror = reject;
+            img.src = URL.createObjectURL(file);
         });
     }
     
@@ -213,15 +286,15 @@ class ChatInterface {
         });
         
         // Wrap addresses in special styling with map button only for specific addresses
-        processedContent = processedContent.replace(/(Địa chỉ:\s*)([^\n<]+)/g, (match, label, address) => {
-            const addressInfo = `<div class="address-info"><i class="fas fa-map-marker-alt"></i> <span class="address-label">${label}</span><span class="address-text">${address}</span>`;
+        // processedContent = processedContent.replace(/(Địa chỉ:\s*)([^\n<]+)/g, (match, label, address) => {
+        //     const addressInfo = `<div class="address-info"><i class="fas fa-map-marker-alt"></i> <span class="address-label">${label}</span><span class="address-text">${address}</span>`;
             
-            // Only show map button for specific addresses (containing street numbers, district info, etc.)
-            if (this.isSpecificAddress(address)) {
-                return addressInfo + `<button class="map-button" onclick="window.chatInterface.searchOnMap('${address}')" title="Xem trên bản đồ"><i class="fas fa-map-marked-alt"></i></button></div>`;
-            }
-            return addressInfo + '</div>';
-        });
+        //     // Only show map button for specific addresses (containing street numbers, district info, etc.)
+        //     if (this.isSpecificAddress(address)) {
+        //         return addressInfo + `<button class="map-button" onclick="window.chatInterface.searchOnMap('${address}')" title="Xem trên bản đồ"><i class="fas fa-map-marked-alt"></i></button></div>`;
+        //     }
+        //     return addressInfo + '</div>';
+        // });
         
         // Highlight special features or characteristics
         processedContent = processedContent.replace(/(Đặc sản:|Đặc điểm:|Nổi tiếng:|Hoạt động:|Giờ mở cửa:)([^\n]+)/g, 
@@ -313,6 +386,14 @@ class ChatInterface {
         } else {
             this.loadingOverlay.style.display = 'none';
         }
+    }
+    
+    showProcessingMessage(message) {
+        this.showLoading(true, message);
+    }
+    
+    hideProcessingMessage() {
+        this.showLoading(false);
     }
     
     showError(message) {

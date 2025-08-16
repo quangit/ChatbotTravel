@@ -1,0 +1,228 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Test Image Resize</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+        
+        .test-section {
+            border: 1px solid #ddd;
+            padding: 20px;
+            margin: 20px 0;
+            border-radius: 8px;
+        }
+        
+        .preview-container {
+            margin: 20px 0;
+        }
+        
+        .preview-image {
+            max-width: 300px;
+            border: 1px solid #ccc;
+            margin: 10px;
+        }
+        
+        .info-box {
+            background: #f5f5f5;
+            padding: 10px;
+            border-radius: 4px;
+            font-family: monospace;
+            font-size: 12px;
+        }
+        
+        button {
+            background: #007bff;
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 4px;
+            cursor: pointer;
+            margin: 10px 5px;
+        }
+        
+        button:hover {
+            background: #0056b3;
+        }
+        
+        input[type="file"] {
+            margin: 10px 0;
+        }
+        
+        .loading {
+            color: #666;
+            font-style: italic;
+        }
+    </style>
+</head>
+<body>
+    <h1>🖼️ Test Image Resize Feature</h1>
+    <p>Test tính năng resize hình ảnh với max_dimension = 512px</p>
+    
+    <div class="test-section">
+        <h2>Image Upload & Resize Test</h2>
+        
+        <input type="file" id="imageInput" accept="image/*">
+        <button onclick="clearTest()">Clear</button>
+        
+        <div id="loadingMessage" class="loading" style="display: none;">
+            Đang xử lý hình ảnh...
+        </div>
+        
+        <div class="preview-container">
+            <h3>Original Image:</h3>
+            <img id="originalPreview" class="preview-image" style="display: none;">
+            <div id="originalInfo" class="info-box" style="display: none;"></div>
+            
+            <h3>Resized Image (max 512px):</h3>
+            <img id="resizedPreview" class="preview-image" style="display: none;">
+            <div id="resizedInfo" class="info-box" style="display: none;"></div>
+        </div>
+        
+        <div id="base64Output" style="display: none;">
+            <h3>Base64 Data (first 100 chars):</h3>
+            <div class="info-box">
+                <span id="base64Text"></span>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // Copy the resize function from chat.js
+        function resizeImage(file, maxDimension = 512) {
+            return new Promise((resolve, reject) => {
+                const canvas = document.createElement('canvas');
+                const ctx = canvas.getContext('2d');
+                const img = new Image();
+                
+                img.onload = () => {
+                    // Calculate new dimensions
+                    let { width, height } = img;
+                    const originalWidth = width;
+                    const originalHeight = height;
+                    
+                    if (width > height) {
+                        if (width > maxDimension) {
+                            height = (height * maxDimension) / width;
+                            width = maxDimension;
+                        }
+                    } else {
+                        if (height > maxDimension) {
+                            width = (width * maxDimension) / height;
+                            height = maxDimension;
+                        }
+                    }
+                    
+                    // Set canvas dimensions
+                    canvas.width = width;
+                    canvas.height = height;
+                    
+                    // Draw and resize image
+                    ctx.drawImage(img, 0, 0, width, height);
+                    
+                    // Convert to base64
+                    canvas.toBlob((blob) => {
+                        const reader = new FileReader();
+                        reader.onload = () => {
+                            const base64 = reader.result.split(',')[1];
+                            resolve({
+                                base64: base64,
+                                dataUrl: reader.result,
+                                width: width,
+                                height: height,
+                                originalWidth: originalWidth,
+                                originalHeight: originalHeight
+                            });
+                        };
+                        reader.onerror = reject;
+                        reader.readAsDataURL(blob);
+                    }, file.type, 0.9); // 90% quality
+                };
+                
+                img.onerror = reject;
+                img.src = URL.createObjectURL(file);
+            });
+        }
+
+        async function handleImageSelect(event) {
+            const file = event.target.files[0];
+            if (!file) return;
+
+            // Show loading
+            document.getElementById('loadingMessage').style.display = 'block';
+            
+            try {
+                // Show original image
+                const originalUrl = URL.createObjectURL(file);
+                const originalImg = document.getElementById('originalPreview');
+                originalImg.src = originalUrl;
+                originalImg.style.display = 'block';
+                originalImg.onload = () => {
+                    document.getElementById('originalInfo').innerHTML = `
+                        <strong>Original:</strong><br>
+                        File: ${file.name}<br>
+                        Size: ${(file.size / 1024).toFixed(2)} KB<br>
+                        Dimensions: ${originalImg.naturalWidth} x ${originalImg.naturalHeight}px<br>
+                        Type: ${file.type}
+                    `;
+                    document.getElementById('originalInfo').style.display = 'block';
+                };
+
+                // Resize image
+                const resizedData = await resizeImage(file, 512);
+                
+                // Show resized image
+                const resizedImg = document.getElementById('resizedPreview');
+                resizedImg.src = resizedData.dataUrl;
+                resizedImg.style.display = 'block';
+                
+                document.getElementById('resizedInfo').innerHTML = `
+                    <strong>Resized:</strong><br>
+                    Dimensions: ${resizedData.width} x ${resizedData.height}px<br>
+                    Original: ${resizedData.originalWidth} x ${resizedData.originalHeight}px<br>
+                    Reduction: ${((1 - (resizedData.width * resizedData.height) / (resizedData.originalWidth * resizedData.originalHeight)) * 100).toFixed(1)}%<br>
+                    Base64 Length: ${resizedData.base64.length} chars
+                `;
+                document.getElementById('resizedInfo').style.display = 'block';
+                
+                // Show base64 preview
+                document.getElementById('base64Text').textContent = 
+                    resizedData.base64.substring(0, 100) + '...';
+                document.getElementById('base64Output').style.display = 'block';
+                
+                console.log('Resize completed:', {
+                    original: `${resizedData.originalWidth}x${resizedData.originalHeight}`,
+                    resized: `${resizedData.width}x${resizedData.height}`,
+                    base64Length: resizedData.base64.length
+                });
+                
+            } catch (error) {
+                alert('Có lỗi khi xử lý hình ảnh: ' + error.message);
+                console.error('Image processing error:', error);
+            } finally {
+                // Hide loading
+                document.getElementById('loadingMessage').style.display = 'none';
+            }
+        }
+
+        function clearTest() {
+            document.getElementById('imageInput').value = '';
+            document.getElementById('originalPreview').style.display = 'none';
+            document.getElementById('resizedPreview').style.display = 'none';
+            document.getElementById('originalInfo').style.display = 'none';
+            document.getElementById('resizedInfo').style.display = 'none';
+            document.getElementById('base64Output').style.display = 'none';
+            document.getElementById('loadingMessage').style.display = 'none';
+        }
+
+        // Initialize event listener
+        document.getElementById('imageInput').addEventListener('change', handleImageSelect);
+    </script>
+</body>
+</html>
