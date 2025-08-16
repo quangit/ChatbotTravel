@@ -10,7 +10,8 @@ from app.models import ChromaDBManager
 import re
 
 class AgentState(TypedDict):
-    messages: List[str]
+    messages: List[dict]  # Lưu các messages format cho LangChain
+    chat_history: List[dict]  # Lưu lịch sử chat
     query: str
     query_type: str  # "text" or "image"
     image_data: str
@@ -138,6 +139,24 @@ class TravelAIAgent:
             state["retrieved_docs"] = []
         
         return state
+        
+    def _update_chat_history(self, state: AgentState, query: str, response: str) -> List[dict]:
+        """Cập nhật lịch sử chat"""
+        if "chat_history" not in state:
+            state["chat_history"] = []
+        
+        # Thêm tin nhắn mới
+        state["chat_history"].extend([
+            {"role": "user", "content": query},
+            {"role": "assistant", "content": response}
+        ])
+        
+        # Giới hạn lịch sử (giữ 10 lượt gần nhất)
+        max_turns = 10
+        if len(state["chat_history"]) > max_turns * 2:
+            state["chat_history"] = state["chat_history"][-max_turns * 2:]
+        
+        return state["chat_history"]
     
     def _extract_location(self, response_text: str) -> str:
         """Extract location name from LLM response"""
@@ -239,30 +258,41 @@ class TravelAIAgent:
             # Prepare context from retrieved documents
             context = "\n".join(state["retrieved_docs"]) if state["retrieved_docs"] else "Không có thông tin liên quan trong cơ sở dữ liệu."
             
-            # System message
-            system_message = """
+            # System message chỉ chứa context
+            system_message = f"""
             Bạn là một trợ lý du lịch AI chuyên về Việt Nam. Nhiệm vụ của bạn:
             
             1. Trả lời câu hỏi về địa điểm du lịch, món ăn, nhà hàng
             2. Cung cấp thông tin chi tiết, hữu ích và chính xác
             3. Khi đề cập đến nhà hàng/địa điểm, cung cấp địa chỉ cụ thể
-            4. Tạo liên kết Google Maps cho các địa điểm (format: [Xem bản đồ](https://maps.google.com/maps?q=TEN_DIA_DIEM))
+            4. Tạo liên kết Google Maps cho các địa điểm
             5. Trả lời bằng tiếng Việt, thân thiện và nhiệt tình
             
             Thông tin có sẵn:
-            """ + context
+            {context}
+            """
             
-            # User query
-            user_message = f"Câu hỏi: {state['query']}"
+            # Xây dựng messages array
+            state["messages"] = [SystemMessage(content=system_message)]
             
-            messages = [
-                SystemMessage(content=system_message),
-                HumanMessage(content=user_message)
-            ]
+            # Thêm chat history
+            if state.get("chat_history"):
+                for msg in state["chat_history"]:
+                    if msg["role"] == "user":
+                        state["messages"].append(HumanMessage(content=msg["content"]))
+                    else:
+                        state["messages"].append(SystemMessage(content=msg["content"]))
             
-            response = self.llm.invoke(messages)
+            # Thêm câu hỏi hiện tại
+            state["messages"].append(HumanMessage(content=state["query"]))
+            
+            # Gọi LLM
+            response = self.llm.invoke(state["messages"])
             state["response"] = response.content
             print(f"[DEBUG] Initial response generated: {state['response'][:100]}...")
+            
+            # Cập nhật chat history
+            self._update_chat_history(state, state["query"], state["response"])
             
         except Exception as e:
             state["response"] = f"Xin lỗi, tôi đang gặp sự cố kết nối. Vui lòng thử lại sau. Lỗi: {str(e)}"
@@ -334,10 +364,11 @@ class TravelAIAgent:
         result = re.sub(pattern, replace_maps_link, text)
         return result
     
-    def process_query(self, query: str, image_data: str = None) -> str:
-        """Process user query and return response"""
+    def process_query(self, query: str, image_data: str = None, chat_history: List[dict] = None) -> str:
+        """Process query với chat history"""
         initial_state = {
             "messages": [],
+            "chat_history": chat_history or [],
             "query": query,
             "query_type": "text",
             "image_data": image_data,
@@ -348,4 +379,4 @@ class TravelAIAgent:
         }
         
         final_state = self.workflow.invoke(initial_state)
-        return final_state["response"]
+        return final_state
