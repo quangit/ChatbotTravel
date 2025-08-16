@@ -71,11 +71,16 @@ def chat():
             print("[DEBUG] No message or image provided")
             return jsonify({'error': 'Message or image is required'}), 400
         
+        # Lấy chat history từ session
+        chat_history = session.get('chat_history', [])
+
         # Process query with AI agent
-        response = ai_agent.process_query(message, image_data)
-        
+        result = ai_agent.process_query(message, image_data, chat_history)
+
+        session['chat_history'] = result['chat_history']  # Cập nhật chat history vào session
+
         return jsonify({
-            'response': response,
+            'response': result['response'],
             'status': 'success'
         })
         
@@ -133,6 +138,7 @@ def upload_document():
     if not session.get('admin_logged_in'):
         return jsonify({'error': 'Unauthorized'}), 401
     
+
     try:
         if 'file' not in request.files:
             return jsonify({'error': 'No file uploaded'}), 400
