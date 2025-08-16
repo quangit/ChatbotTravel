@@ -108,7 +108,7 @@ class TravelAIAgent:
                 """),
                 HumanMessage(content=[
                     {"type": "text", "text": "Hình ảnh này là gì?"},
-                    {"type": "image_url", "image_url": {"url": f"data:image/jpeg;base64,{image_data}"}}
+                    {"type": "image_url", "image_url": {"url": f"data:image/jpeg;base64,{image_data}", "detail": "low"}}
                 ])
             ]
             
@@ -265,7 +265,7 @@ class TravelAIAgent:
             1. Trả lời câu hỏi về địa điểm du lịch, món ăn, nhà hàng
             2. Cung cấp thông tin chi tiết, hữu ích và chính xác
             3. Khi đề cập đến nhà hàng/địa điểm, cung cấp địa chỉ cụ thể
-            4. Tạo liên kết Google Maps cho các địa điểm
+            4. Tạo liên kết Google Maps cho các địa điểm (format: [Xem bản đồ](https://maps.google.com/maps?q=TEN_DIA_DIEM))
             5. Trả lời bằng tiếng Việt, thân thiện và nhiệt tình
             
             Thông tin có sẵn:
